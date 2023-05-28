@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Webcam Face Detection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container-fluid">
+      <h1 class="text-center mb-4">Webcam Face Detection</h1>
+      <div class="row">
+        <div class="col-md-8">
+          <div class="row">
+            <img id="face" src="{{ url_for('video_feed') }}" width="100%" />
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label for="image">Select image:</label>
+              <input
+                type="file"
+                class="form-control-file"
+                id="image"
+                name="image"
+                onchange="showImage()"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <h1 class="text-center">Webcam Capture</h1>
+          <form id="user-form">
+            <div class="form-group">
+              <label for="name">Tên:</label>
+              <input
+                type="text"
+                class="form-control"
+                id="name"
+                name="name"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <button
+                type="button"
+                class="btn btn-primary"
+                id="capture-btn"
+                onclick="sendData()"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <br />
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+      // const radioOptions = document.getElementsByName("option");
+
+      // for (let i = 0; i < radioOptions.length; i++) {
+      //   radioOptions[i].addEventListener("change", function () {
+      //     if (this.value == "webcam") {
+      //       console.log(1);
+      //       document.getElementById("face").src = "{{ url_for('video_feed') }}";
+      //     } else {
+      //       console.log(2);
+      //     }
+      //   });
+      // }
+      function sendData() {
+        // Get the form data
+        const formData = new FormData(document.getElementById("user-form"));
+
+        const img = document.getElementById("face");
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const context = canvas.getContext("2d");
+        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL("image/png");
+        // Add the image data to the form data
+        formData.append("imageBase64", imageData);
+
+        // Send the form data and image data to the Flask server
+        fetch("/capture", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => {
+            if (response.ok) {
+              alert("Image and data saved successfully");
+            } else {
+              throw new Error("Something went wrong");
+            }
+          })
+          .catch((error) => alert(error));
+      }
+      function showImage() {
+        const fileInput = document.getElementById("image");
+        const imagePreview = document.getElementById("face");
+
+        if (fileInput.files && fileInput.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const image = document.createElement("img");
+            imagePreview.src = event.target.result;
+            // image.src = event.target.result;
+            // console.log(event.target.result);
+            // imagePreview.innerHTML = "";
+            // imagePreview.appendChild(image);
+          };
+          reader.readAsDataURL(fileInput.files[0]);
+          console.log(reader.readAsDataURL(fileInput.files[0]));
+        }
+      }
+    </script>
+  </body>
+</html>

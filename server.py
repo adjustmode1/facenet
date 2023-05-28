@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import os
 import base64
-import uuid
 from flask import session
 import json
 import pymysql
@@ -19,10 +18,6 @@ app = Flask(__name__)
 cors = CORS(app)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-
-db.init_app(app)
-
-# cursor = mysql.connection.cursor()
 
 # This is a demo of running face recognition on live video from your webcam. It's a little more complicated than the
 # other example, but it includes some basic performance tweaks to make things run a lot faster:
@@ -64,13 +59,15 @@ def load_faces():
      
         image = face_recognition.load_image_file(folder_path + "/" + name)
         face_encoding = face_recognition.face_encodings(image)[0]
-        info_path_file = info_path + "/" + name.replace('.jpg', '.txt')
+        info_path_file = info_path + "/" + name.split('.')[0] + '.txt'
         with open(info_path_file, 'r', encoding="utf-8") as f:
             file_contents = f.read()
 
         # Create arrays of known face encodings and their names
         known_face_encodings.append(face_encoding)
         known_face_names.append(file_contents)
+    print('------------------')
+    print(known_face_names)
 
 
 # Initialize some variables
@@ -87,7 +84,10 @@ def predict(frame):
     if len(known_face_encodings) == 0:
         return "Unknown"
     # Resize frame of video to 1/4 size for faster face recognition processing
+    if frame is None:
+        return 'Unknown'
     small_frame = cv2.resize(frame, (0, 0), fx=0.2, fy=0.2)
+    # small_frame = cv2.resize(frame, (0, 0), dsize=(224,224))
 
     # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
     rgb_small_frame = small_frame[:, :, ::-1]
@@ -171,12 +171,6 @@ def predict_page():
 def capture():
     # Get user input from form
     name = request.form['name']
-    birthday = request.form['birthday']
-    phone = request.form['phone']
-    address = request.form['address']
-    gender = 1
-    if request.form['gender'] == 'female':
-        gender = 0
 
     # Capture image from webcam
     random_name = get_random_string(15)
@@ -188,18 +182,22 @@ def capture():
 
     # Save user input to a text file
     with open(textfilename, 'a', encoding="utf-8") as file:
-        file.write(f"{name},{birthday},{phone},{gender},{address},{filename}\n")
+        file.write(f"{name},{filename}\n")
 
     return 'Image and data saved successfully'
 
 # Define the video stream route
+@app.route('/add_face')
+def add_face():
+    return render_template('add_face.html')
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def pred(frame):
-
-    yield "data: {}\n\n".format(predict(frame)) 
+    data = predict(frame)
+    print('data ------: ',data)
+    yield "data: {}\n\n".format(data) 
 
 video_capture1 = cv2.VideoCapture(0)
 @app.route("/face_detection")
