@@ -211,12 +211,11 @@ def pred(frame):
     else:
         yield "data: {}\n\n".format(data) 
 
-video_capture1 = cv2.VideoCapture(0)
 @app.route("/face_detection")
 def face_regco():
 
     while load_frame:
-        success, frame = video_capture1.read()
+        success, frame = video_capture.read()
         try:
             return Response(pred(frame), mimetype="text/event-stream")
         except TypeError:
