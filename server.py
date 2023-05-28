@@ -1,5 +1,4 @@
 from flask import Response, Flask, render_template, request, redirect, url_for, jsonify, make_response
-from flaskext.mysql import MySQL
 import face_recognition
 import cv2
 import numpy as np
@@ -8,26 +7,15 @@ import base64
 import uuid
 from flask import session
 import json
-import pymysql
 from flask_cors import CORS
 import random
 import string
-
-pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 cors = CORS(app)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 # app.config["SQLALCHEMY_DATABASE_URI"] = "mysql://root:@localhost/school"
-
-app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = ''
-app.config['MYSQL_DATABASE_DB'] = 'school'
-app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-
-db = MySQL()
-db.init_app(app)
 
 # cursor = mysql.connection.cursor()
 
@@ -176,18 +164,6 @@ def stopcam():
     global load_frame
     load_frame = False
 
-# Define the route for the index page
-@app.route('/')
-def index():
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from lophoc;"
-    cursor.execute(query)
-    cl = cursor.fetchall()
-    print(cl)
-    return render_template('introdution.html',classes=cl)
-# Define the route for the index page
-
 @app.route('/predict')
 def predict_page():
     load_faces()
@@ -197,345 +173,15 @@ def predict_page():
 def add_face():
     return render_template('add_face.html')
 
-@app.route('/admin',methods=['GET'])
-def admin():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from giaovien;"
-    cursor.execute(query)
-    gv = cursor.fetchall()
-    return render_template('views/admin/giaovien.html',giaoviens=gv,role=session['role'])
-
 @app.route('/cam',methods=['GET'])
 def cam():
     load_faces()
     return render_template('predict.html')
 
-@app.route('/admin/classes',methods=['GET'])
-def lophoc():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from lophoc;"
-    cursor.execute(query)
-    classes = cursor.fetchall()
-    return render_template('views/admin/classes.html',classes=classes,role=session['role'])
-
-@app.route('/admin/add_class',methods=['POST'])
-def add_lophoc():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    classname = request.form['name']
-    try:
-        conn = db.connect()
-        cursor = conn.cursor()
-        query = "insert into lophoc values(\'"+classname.upper()+"\');"
-        cursor.execute(query)
-        conn.commit()
-    except:
-        return redirect('/admin/classes')
-    return redirect('/admin/classes')
-
-@app.route('/admin/del_class',methods=['POST'])
-def del_lophoc():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    classname = request.form['name']
-    try:
-        conn = db.connect()
-        cursor = conn.cursor()
-        query = "delete from lophoc where id=\'"+classname+"\';"
-        print(query)
-        cursor.execute(query)
-        conn.commit()
-    except:
-        return redirect('/admin/classes')
-    return redirect('/admin/classes')
-
-@app.route('/admin/phuhuynh',methods=['GET'])
-def phuhuynh():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from phuhuynh;"
-    cursor.execute(query)
-    ph = cursor.fetchall()
-    return render_template('views/admin/phuhuynh.html',phuhuynhs=ph,role=session['role'])
-
-@app.route('/admin/quanly_class',methods=['GET'])
-def quanly_class():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from lophoc_hocsinh where id_giaovien=\'"+session['user']+"\'"
-    cursor.execute(query)
-    lophoc_hocsinh = cursor.fetchall()
-    print(lophoc_hocsinh)
-    query = "select * from hocsinh;"
-    cursor.execute(query)
-    hocsinh = cursor.fetchall()
-    query = "select * from giaovien"
-    cursor.execute(query)
-    giaovien = cursor.fetchall()
-    return render_template('views/admin/student_class.html',classes=lophoc_hocsinh,role=session['role'])
-
-@app.route('/classes',methods=['GET'])
-def classes():
-    query = request.args.get('class')
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from lophoc where id=\'"+query+"\';"
-    cursor.execute(query)
-    ph = cursor.fetchall()
-    return render_template('views/classes.html',phuhuynhs=ph)
-
-@app.route('/classes/<id>',methods=['GET'])
-def view_lophoc(id):
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from lophoc_hocsinh where id_lophoc=\'"+id+"\';"
-    cursor.execute(query)
-    lh = cursor.fetchall()
-    query = "select * from giaovien"
-    cursor.execute(query)
-    gv = cursor.fetchall()    
-    query = "select * from hocsinh"
-    cursor.execute(query)
-    hocsinh = cursor.fetchall() 
-    gvcn = ''
-    for x in gv:
-        print('x: ',x[1])
-        print('x: ',lh[1])
-        if x[0] == lh[0]:
-            gvcn = gv[1]
-
-    return render_template('views/classes.html',classes=lh,gv=gv,hs=hocsinh,siso=len(lh),giaovienchunhhiem=gvcn)
-    
-@app.route('/test')
-def test():
-    return render_template('add_test.html')
-
-@app.route('/admin/login',methods=['GET'])
-def login():
-    return render_template('views/admin/login.html')
-
-@app.route('/admin/login',methods=['POST'])
-def checklogin():
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = "select * from giaovien WHERE id=\'"+request.form['username']+"\' and matkhau = \'"+request.form['password']+"\';"
-    cursor.execute(query)
-    account = cursor.fetchone()
-    print(account)
-    if (account is None):
-        return redirect(url_for('login'))
-    else:
-        session['user'] = account[0]
-        session['role'] = account[6]
-        print(account[6])
-        if account[6] == 0:
-            return redirect(url_for('admin'))
-        else:
-            return redirect(url_for('phuhuynh'))
-    
-@app.route('/admin/logout',methods=['POST'])
-def logout():
-    if 'user' in session:
-        del session['user']
-    if 'role' in session:
-        del session['role']
-    return redirect(url_for('login'))
-
-@app.route('/admin/add_giaovien',methods=['POST'])
-def add_giaovien():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    if 'role' not in session:
-        return redirect(url_for('login'))
-    if session['role'] != 0:
-        return redirect(url_for('login'))
-    name = request.form['name']
-    code = request.form['code']
-    gender = 1
-    if request.form['gender'] == 'female':
-        gender = 0
-    birthday = request.form['birthday']
-    password = request.form['password']
-    image = request.files['file']
-    try:
-        conn = db.connect()
-        cursor = conn.cursor()
-        newimage = get_random_string(15)
-        newimage = '/static/uploads/teachers/'+newimage+'.'+image.filename.split('.')[1]
-        query = 'insert into giaovien values(\"'+code+'\",\"'+name+'\",\"'+newimage+'\",'+str(gender)+',\"'+birthday+'\",'+'\"'+password+'\"'+',1)'
-        print(query)   
-        cursor.execute(query)
-        conn.commit()
-        image.save('/static/uploads/teachers/'+newimage+'.'+image.filename.split('.')[1])
-    except:
-        return redirect(url_for('admin'))
-    return redirect(url_for('admin'))
-
-@app.route('/admin/del_giaovien',methods=['POST'])
-def del_giaovien():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    id = request.form['id']
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'delete from giaovien where id=\"'+id+"\";" 
-    print(query)
-    cursor.execute(query)
-    conn.commit()
-    return redirect(url_for('admin'))
-
-@app.route('/admin/teacher_class',methods=['GET'])
-def teacher_class():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'select * from lophoc_giaovien' 
-    cursor.execute(query)
-    lophoc_giaovien = cursor.fetchall()
-    query = 'SELECT * FROM lophoc'
-    cursor.execute(query)
-    lophoc = cursor.fetchall()
-    query = 'SELECT * FROM giaovien'
-    cursor.execute(query)
-    giaovien = cursor.fetchall()
-    return render_template('views/admin/teacher_class.html',classes=lophoc_giaovien,lophoc_giaovien=lophoc,giaovien=giaovien,role=session['role'])
-
-@app.route('/admin/add_teacher_class',methods=['POST'])
-def add_teacher_class():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    lophoc = request.form['class']
-    giaovien = request.form['teacher']
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'insert into lophoc_giaovien values(\"'+lophoc+'\",\"'+giaovien+'\")' 
-    cursor.execute(query)
-    conn.commit()
-    return redirect(url_for('teacher_class'))
-
-@app.route('/admin/del_teacher_class',methods=['POST'])
-def del_teacher_class():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    try:
-        lophoc = request.form['class']
-        giaovien = request.form['teacher']
-        conn = db.connect()
-        cursor = conn.cursor()
-        query = 'delete from lophoc_giaovien where id_lophoc=\"'+lophoc+'\" and id_giaovien=\"'+giaovien+'\"' 
-        cursor.execute(query)
-        conn.commit()
-    except:
-        return redirect(url_for('teacher_class'))
-    return redirect(url_for('teacher_class'))
-
-@app.route('/admin/add_phuhuyn',methods=['GET'])
-def add_phuhuynh():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    return render_template('views/admin/addphuhuynh.html',student=-1,role=session['role'])
-
-@app.route('/admin/add_phuhuyn/<id>',methods=['GET'])
-def add_phuhuynh_and_student(id):
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    return render_template('views/admin/addphuhuynh.html',classes='',student=id,role=session['role'])
-
-@app.route('/admin/student',methods=['GET'])
-def student():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'select * from hocsinh' 
-    cursor.execute(query)
-    hocsinh = cursor.fetchall()
-    print(hocsinh)
-    return render_template('views/admin/student.html',hocsinh=hocsinh,role=session['role'])
-
-@app.route('/admin/add_student',methods=['POST'])
-def add_student():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    if 'role' not in session:
-        return redirect(url_for('login'))
-    if session['role'] != 1:
-        return redirect(url_for('login'))
-    name = request.form['name']
-    gender = 1
-    if request.form['gender'] == 'female':
-        gender = 0
-    birthday = request.form['birthday']
-    image = request.files['file']
-    print(image)
-    # try:
-    conn = db.connect()
-    cursor = conn.cursor()
-    newimage = get_random_string(15)
-    newimage = newimage+'.'+image.filename.split('.')[1]
-    query = 'insert into hocsinh(ten,hinhanh,gioitinh,ngaysinh) values(\"'+name+'\",\"'+newimage+'\",'+str(gender)+',\"'+birthday+'\")'
-    print(query)   
-    cursor.execute(query)
-    conn.commit()
-    image.save(os.path.join(app.config['UPLOAD_FOLDER'],newimage))
-    # except:
-        # return redirect(url_for('student'))
-    return redirect(url_for('student'))
-
-@app.route('/admin/del_student',methods=['POST'])
-def del_student():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    if 'role' not in session:
-        return redirect(url_for('login'))
-    if session['role'] != 1:
-        return redirect(url_for('login'))
-    name = request.form['id']
-    try:
-        conn = db.connect()
-        cursor = conn.cursor()
-        query = 'delete from hocsinh where id=\"'+name+'\"'
-        print(query)   
-        cursor.execute(query)
-        conn.commit()
-    except:
-        return redirect(url_for('student'))
-    return redirect(url_for('student'))
-
-@app.route('/admin/del_phuhuynh',methods=['POST'])
-def del_phuhuynh():
-    id = request.form['id']
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'delete from phuhuynh where id=\"'+id+"\""
-    cursor.execute(query)
-    conn.commit()
-    os.remove('static/uploads/imgs/'+id+'.jpg')
-    os.remove('static/uploads/info/'+id+'.txt')
-    load_faces()
-    return redirect(url_for('phuhuynh'))
-
 @app.route('/capture', methods=['POST'])
 def capture():
     # Get user input from form
     name = request.form['name']
-    birthday = request.form['birthday']
-    phone = request.form['phone']
-    address = request.form['address']
-    gender = 1
-    if request.form['gender'] == 'female':
-        gender = 0
 
     # Capture image from webcam
     random_name = get_random_string(15)
@@ -547,18 +193,8 @@ def capture():
 
     # Save user input to a text file
     with open(textfilename, 'a', encoding="utf-8") as file:
-        file.write(f"{name},{birthday},{phone},{gender},{address},{filename}\n")
-
-    conn = db.connect()
-    cursor = conn.cursor()
-    query = 'insert into phuhuynh values(\"'+random_name+'\",\"'+name+'\",\"'+filename+'\",'+str(gender)+',\"'+phone+'\",\"'+birthday+'\",\"'+address+'\")'    
-    print(query)
-    cursor.execute(query)
-    conn.commit()
-    if request.form['student']:
-        query = 'insert into phuhuynh_hocsinh values(\"'+random_name+'\",\"'+request.form['student']+'\")'
-        cursor.execute(query)
-        conn.commit()
+        file.write(f"{name},{filename}\n")
+        
     return 'Image and data saved successfully'
 
 
